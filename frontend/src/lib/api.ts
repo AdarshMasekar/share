@@ -1,6 +1,4 @@
-const API_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:5001/api'
-  : 'https://knowshare.onrender.com/api';
+const API_URL = 'https://knowshare.onrender.com/api';
 
 export interface FileData {
   id: string;
