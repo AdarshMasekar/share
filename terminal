@@ -1,0 +1,5 @@
+mkdir sharer-backend
+cd sharer-backend
+npm init -y
+npm install express cors dotenv mongoose typescript @types/express @types/cors @types/node ts-node
+npm install --save-dev nodemon
