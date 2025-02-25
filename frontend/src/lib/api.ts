@@ -1,4 +1,4 @@
-const API_URL = 'https://knowshare.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://knowshare.onrender.com/api';
 
 export interface FileData {
   id: string;
