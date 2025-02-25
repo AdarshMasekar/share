@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css';
+import './styles.css';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 function App() {
   const [files, setFiles] = useState([]);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
-
-  const API_URL = process.env.REACT_APP_API_URL;
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchFiles();
@@ -16,95 +14,84 @@ function App() {
 
   const fetchFiles = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/files`);
-      setFiles(response.data);
+      const response = await fetch(`${API_URL}/api/files`);
+      const data = await response.json();
+      setFiles(data);
     } catch (error) {
-      console.error('Error fetching files:', error);
+      setError('Error fetching files');
     }
   };
 
-  const handleFileSelect = (event) => {
+  const handleUpload = async (event) => {
     const file = event.target.files[0];
-    if (file && file.size > 10 * 1024 * 1024) {
-      setUploadStatus('File size must be less than 10MB');
-      return;
-    }
-    setSelectedFile(file);
-    setUploadStatus('');
-  };
+    if (!file) return;
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setUploadStatus('Please select a file');
-      return;
-    }
-
-    if (!selectedFile.name.endsWith('.zip')) {
-      setUploadStatus('Please select a ZIP file');
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      setError('Please upload a ZIP file');
       return;
     }
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append('file', file);
+
+    setUploading(true);
+    setError(null);
 
     try {
-      setIsUploading(true);
-      await axios.post(`${API_URL}/api/upload`, formData);
-      setUploadStatus('File uploaded successfully');
-      setSelectedFile(null);
-      fetchFiles();
+      const response = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      await fetchFiles();
     } catch (error) {
-      setUploadStatus(error.response?.data?.error || 'Error uploading file');
-      console.error('Error:', error);
+      setError('Error uploading file');
     } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDownload = async (fileId) => {
-    try {
-      window.open(`${API_URL}/api/download/${fileId}`);
-    } catch (error) {
-      console.error('Error downloading file:', error);
+      setUploading(false);
     }
   };
 
   return (
-    <div className="App">
-      <h1>ZIP File Manager</h1>
+    <div className="container">
+      <div className="warning-banner">
+        ⚠️ WARNING: This application provides NO SECURITY. Anyone can upload and download files. Do not share sensitive data! ⚠️
+      </div>
+
+      <h1>ZIP File Uploader</h1>
 
       <div className="upload-section">
         <input
           type="file"
           accept=".zip"
-          onChange={handleFileSelect}
-          disabled={isUploading}
+          onChange={handleUpload}
+          disabled={uploading}
         />
-        <button
-          onClick={handleUpload}
-          disabled={isUploading || !selectedFile}
-        >
-          {isUploading ? 'Uploading...' : 'Upload'}
-        </button>
-        {uploadStatus && <p className={uploadStatus.includes('success') ? 'success' : 'error'}>{uploadStatus}</p>}
+        {uploading && <p>Uploading...</p>}
+        {error && <p className="error">{error}</p>}
       </div>
 
       <div className="files-section">
         <h2>Uploaded Files</h2>
-        {files.length === 0 ? (
-          <p>No files uploaded yet</p>
-        ) : (
-          <ul>
-            {files.map((file) => (
-              <li key={file._id}>
-                <span>{file.filename}</span>
-                <button onClick={() => handleDownload(file._id)}>
-                  Download
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul>
+          {files.map((file) => (
+            <li key={file._id}>
+              <span>{file.filename}</span>
+              <span className="file-date">
+                {new Date(file.uploadDate).toLocaleString()}
+              </span>
+              <a
+                href={`${API_URL}/api/files/${file.filename}`}
+                className="download-button"
+              >
+                Download
+              </a>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
