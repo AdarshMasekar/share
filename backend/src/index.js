@@ -8,13 +8,31 @@ const Grid = require('gridfs-stream');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// CORS configuration
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // MongoDB Connection
 const mongoURI = process.env.MONGODB_URI;
-mongoose.connect(mongoURI);
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('MongoDB Connected');
+}).catch(err => {
+  console.error('MongoDB Connection Error:', err);
+});
 
 // GridFS setup
 let gfs;
@@ -77,6 +95,19 @@ app.get('/api/files/:filename', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something broke!' });
 });
+
+// Handle Vercel serverless function requirements
+if (process.env.VERCEL) {
+  // Export the Express app as a serverless function
+  module.exports = app;
+} else {
+  // Start the server normally
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
